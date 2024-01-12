@@ -1,3 +1,3 @@
-# TRPS1_cholesterol_analysis
+# ER_antagonist_analysis
 
-The rendered HTML can be found at the following link: https://tgscott400.github.io/TRPS1_cholesterol_analysis/Vignette.html
+The rendered HTML can be found at the following link: https://tgscott400.github.io/ER_antagonist_analysis/Vignette.html
