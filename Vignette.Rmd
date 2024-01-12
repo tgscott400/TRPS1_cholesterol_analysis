@@ -35,7 +35,7 @@ pre[class] {
 
 This is an analysis vignette accompanying the manuscript entitled "TRPS1 represses transcription of cholesterol biosynthesis genes and is associated with blood cholesterol traits." The reader should be able to follow these steps to download the raw data and reproduce all the results in the manuscript.  
 
-# GWAS summary statistics processing
+# Test
 
 ## Make the file to upload to LocusZoom (Figure 1A)
 
