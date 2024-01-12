@@ -37,7 +37,7 @@ This is an analysis vignette accompanying the manuscript entitled "TRPS1 repress
 
 # Test
 
-Test!
+Test
 
 ## Test
 
