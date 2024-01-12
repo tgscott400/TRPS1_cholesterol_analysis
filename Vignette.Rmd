@@ -37,15 +37,10 @@ This is an analysis vignette accompanying the manuscript entitled "TRPS1 repress
 
 # Test
 
-## Make the file to upload to LocusZoom (Figure 1A)
+## Test
 
-Here we just focus on chromosome 8 (where TRPS1 is located) and a subset of columns to keep the file size manageable.
-I uploaded this file to LocusZoom to make the plot.
+Test
 
 ```{r engine='bash', eval=F, echo=TRUE}
-wget https://bcac.ccge.medschl.cam.ac.uk/files/icogs_onco_gwas_meta_overall_breast_cancer_summary_level_statistics.txt.zip
-unzip icogs_onco_gwas_meta_overall_breast_cancer_summary_level_statistics.txt.zip
-head -n 1 icogs_onco_gwas_meta_overall_breast_cancer_summary_level_statistics.txt > Breast_cancer_GWAS_PMID_32424353_chr8.txt
-grep '^8_' icogs_onco_gwas_meta_overall_breast_cancer_summary_level_statistics.txt >> Breast_cancer_GWAS_PMID_32424353_chr8.txt
-awk '{OFS = "\t"; print $9, $10, $41, $40, $46}' Breast_cancer_GWAS_PMID_32424353_chr8.txt > Breast_cancer_GWAS_PMID_32424353_chr8_subset.txt
+Test
 ```
