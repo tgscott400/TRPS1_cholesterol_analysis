@@ -710,7 +710,7 @@ function toggle_visibility(id1) {
 <li><a href="#introduction" id="toc-introduction"><span class="toc-section-number">1</span> Introduction</a></li>
 <li><a href="#test" id="toc-test"><span class="toc-section-number">2</span> Test</a>
 <ul>
-<li><a href="#make-the-file-to-upload-to-locuszoom-figure-1a" id="toc-make-the-file-to-upload-to-locuszoom-figure-1a"><span class="toc-section-number">2.1</span> Make the file to upload to LocusZoom (Figure 1A)</a></li>
+<li><a href="#test-1" id="toc-test-1"><span class="toc-section-number">2.1</span> Test</a></li>
 </ul></li>
 </ul>
 </div>
@@ -737,15 +737,10 @@ max-height: 600px;
 </div>
 <div id="test" class="section level1" number="2">
 <h1><span class="header-section-number">2</span> Test</h1>
-<div id="make-the-file-to-upload-to-locuszoom-figure-1a" class="section level2" number="2.1">
-<h2><span class="header-section-number">2.1</span> Make the file to upload to LocusZoom (Figure 1A)</h2>
-<p>Here we just focus on chromosome 8 (where TRPS1 is located) and a subset of columns to keep the file size manageable.
-I uploaded this file to LocusZoom to make the plot.</p>
-<pre class="bash"><code>wget https://bcac.ccge.medschl.cam.ac.uk/files/icogs_onco_gwas_meta_overall_breast_cancer_summary_level_statistics.txt.zip
-unzip icogs_onco_gwas_meta_overall_breast_cancer_summary_level_statistics.txt.zip
-head -n 1 icogs_onco_gwas_meta_overall_breast_cancer_summary_level_statistics.txt &gt; Breast_cancer_GWAS_PMID_32424353_chr8.txt
-grep &#39;^8_&#39; icogs_onco_gwas_meta_overall_breast_cancer_summary_level_statistics.txt &gt;&gt; Breast_cancer_GWAS_PMID_32424353_chr8.txt
-awk &#39;{OFS = &quot;\t&quot;; print $9, $10, $41, $40, $46}&#39; Breast_cancer_GWAS_PMID_32424353_chr8.txt &gt; Breast_cancer_GWAS_PMID_32424353_chr8_subset.txt</code></pre>
+<div id="test-1" class="section level2" number="2.1">
+<h2><span class="header-section-number">2.1</span> Test</h2>
+<p>Test</p>
+<pre class="bash"><code>Test</code></pre>
 </div>
 </div>
 
