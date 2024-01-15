@@ -700,7 +700,7 @@ function toggle_visibility(id1) {
 
 
 <h1 class="title toc-ignore">TRPS1 Cholesterol Analysis Vignette</h1>
-<h4 class="date">Last compiled on 12 January 2024</h4>
+<h4 class="date">Last compiled on 15 January 2024</h4>
 
 </div>
 
@@ -708,9 +708,15 @@ function toggle_visibility(id1) {
 <div id="TOC">
 <ul>
 <li><a href="#introduction" id="toc-introduction"><span class="toc-section-number">1</span> Introduction</a></li>
-<li><a href="#test" id="toc-test"><span class="toc-section-number">2</span> Test</a>
+<li><a href="#pro-seq" id="toc-pro-seq"><span class="toc-section-number">2</span> PRO-seq</a>
 <ul>
-<li><a href="#test-1" id="toc-test-1"><span class="toc-section-number">2.1</span> Test</a></li>
+<li><a href="#download-counts-table" id="toc-download-counts-table"><span class="toc-section-number">2.1</span> Download counts table</a></li>
+<li><a href="#differential-gene-expression-analysis" id="toc-differential-gene-expression-analysis"><span class="toc-section-number">2.2</span> Differential gene expression analysis</a></li>
+</ul></li>
+<li><a href="#gsea-eqtl-data" id="toc-gsea-eqtl-data"><span class="toc-section-number">3</span> GSEA / eQTL data</a>
+<ul>
+<li><a href="#download-gsea-summary-statistics-for-upload-to-locuszoom" id="toc-download-gsea-summary-statistics-for-upload-to-locuszoom"><span class="toc-section-number">3.1</span> Download GSEA summary statistics for upload to LocusZoom</a></li>
+<li><a href="#colocalization" id="toc-colocalization"><span class="toc-section-number">3.2</span> Colocalization</a></li>
 </ul></li>
 </ul>
 </div>
@@ -735,13 +741,256 @@ max-height: 600px;
 <h1><span class="header-section-number">1</span> Introduction</h1>
 <p>This is an analysis vignette accompanying the manuscript entitled “TRPS1 represses transcription of cholesterol biosynthesis genes and is associated with blood cholesterol traits.” The reader should be able to follow these steps to download the raw data and reproduce all the results in the manuscript.</p>
 </div>
-<div id="test" class="section level1" number="2">
-<h1><span class="header-section-number">2</span> Test</h1>
-<p>Test</p>
-<div id="test-1" class="section level2" number="2.1">
-<h2><span class="header-section-number">2.1</span> Test</h2>
-<p>Test</p>
-<pre class="bash"><code>Test</code></pre>
+<div id="pro-seq" class="section level1" number="2">
+<h1><span class="header-section-number">2</span> PRO-seq</h1>
+<div id="download-counts-table" class="section level2" number="2.1">
+<h2><span class="header-section-number">2.1</span> Download counts table</h2>
+<p>We start with the counts table we previously generated (<a href="https://guertinlab.github.io/TRPS1_ER_analysis/Vignette.html#three-clone-pro-seq-data-pre-processing" class="uri">https://guertinlab.github.io/TRPS1_ER_analysis/Vignette.html#three-clone-pro-seq-data-pre-processing</a>).</p>
+<pre class="bash"><code>cd ~/Library/CloudStorage/Box-Box/GuertinLab/TRPS1/
+wget https://ftp.ncbi.nlm.nih.gov/geo/series/GSE251nnn/GSE251772/suppl/GSE251772%5FTRPS1%5FPRO%5Fgene%5Fcounts.txt.gz</code></pre>
+</div>
+<div id="differential-gene-expression-analysis" class="section level2" number="2.2">
+<h2><span class="header-section-number">2.2</span> Differential gene expression analysis</h2>
+<p>Set up in R.</p>
+<pre class="r bg-info"><code>library(lattice)
+library(DESeq2)
+library(apeglm)
+library(tidyverse)
+library(latticeExtra)
+library(msigdbr)
+library(clusterProfiler)
+library(enrichplot)
+library(grid)
+organism = &quot;org.Hs.eg.db&quot;
+library(organism, character.only = TRUE)
+library(pheatmap)
+
+categorize.deseq.df.mods &lt;- function(df, fdr = 0.05, log2fold = 0.0, treat = &#39;Estrogen&#39;) 
+{
+  df.activated = df[df$padj &lt; fdr &amp; !is.na(df$padj) &amp; df$log2FoldChange &gt; log2fold,]
+  df.repressed = df[df$padj &lt; fdr &amp; !is.na(df$padj) &amp; df$log2FoldChange &lt; -log2fold,]
+  df.unchanged = df[df$padj &gt; 0.5 &amp; !is.na(df$padj) &amp; abs(df$log2FoldChange) &lt; 0.1,]
+  df.dregs = df[!(df$padj &lt; fdr &amp; !is.na(df$padj) &amp; df$log2FoldChange &gt; log2fold) &amp;
+                  !(df$padj &lt; fdr &amp; !is.na(df$padj) &amp; df$log2FoldChange &lt; -log2fold) &amp;
+                  !(df$padj &gt; 0.5 &amp; !is.na(df$padj) &amp; abs(df$log2FoldChange) &lt; 0.1), ]
+  df.unchanged$treatment = paste(treat, &#39;Unchanged&#39;)
+  df.activated$treatment = paste(treat, &#39;Activated&#39;)
+  df.repressed$treatment = paste(treat, &#39;Repressed&#39;)
+  df.dregs$treatment = paste(treat, &#39;All Other Genes&#39;)
+  df.effects.lattice =
+    rbind(df.activated,
+          df.unchanged,
+          df.repressed,
+          df.dregs)
+  df.effects.lattice$treatment = factor(df.effects.lattice$treatment)
+  df.effects.lattice$treatment = relevel(df.effects.lattice$treatment, ref = paste(treat, &#39;Activated&#39;))
+  df.effects.lattice$treatment = relevel(df.effects.lattice$treatment, ref = paste(treat, &#39;Repressed&#39;))
+  df.effects.lattice$treatment = relevel(df.effects.lattice$treatment, ref = paste(treat, &#39;Unchanged&#39;))
+  df.effects.lattice$treatment = relevel(df.effects.lattice$treatment, ref = paste(treat, &#39;All Other Genes&#39;))
+  return(df.effects.lattice)
+}
+
+rwb &lt;- colorRampPalette(colors = c(&quot;red&quot;, &quot;white&quot;, &quot;blue&quot;))
+
+direc = &quot;~/Library/CloudStorage/Box-Box/GuertinLab/TRPS1/&quot;
+setwd(direc)
+
+#Gene sets
+m_t2g &lt;- msigdbr(species = &quot;Homo sapiens&quot;, category = &quot;C2&quot;, subcategory = &quot;CP:REACTOME&quot;) %&gt;% 
+  dplyr::select(gs_name, ensembl_gene)
+
+#For converting gene names
+gene.file = read.table(&quot;~/Library/CloudStorage/Box-Box/GuertinLab/ER_Antagonists_R/Homo_sapiens.GRCh38.104.bed&quot;, sep = &#39;\t&#39;, header = FALSE)
+`%notin%` &lt;- Negate(`%in%`)
+gene.file = gene.file[gene.file$V5 %notin% c(&quot;havana&quot;, &quot;havana_tagene&quot;, &quot;ensembl_havana&quot;),]
+gene.symbol = gene.file[,c(4,5)]
+colnames(gene.symbol) = c(&quot;gene&quot;, &quot;symbol&quot;)</code></pre>
+<p>Differential expression.</p>
+<pre class="r bg-info"><code>x = read.table(&quot;TRPS1_PRO_gene_counts.txt&quot;, sep = &#39;\t&#39;, header = TRUE)
+rownames(x) = x[,1]
+x = x[,seq(2,to=ncol(x),by=2)]
+
+treatment = factor(sapply(strsplit(colnames(x), &#39;_&#39;), &#39;[&#39;, 3))
+clone = factor(sapply(strsplit(colnames(x), &#39;_&#39;), &#39;[&#39;, 2))
+rep = factor(sapply(strsplit(colnames(x), &#39;rep&#39;), &#39;[&#39;, 2))
+deseq.df = DESeqDataSetFromMatrix(x, cbind.data.frame(treatment, clone, rep), ~ rep + clone + treatment)
+deseq.df = DESeq(deseq.df)
+
+#Shrinking fold change
+res.deseq.shrink &lt;- lfcShrink(deseq.df, coef = &quot;treatment_dTAG13_vs_DMSO&quot;, type=&quot;apeglm&quot;)
+res.deseq.shrink = res.deseq.shrink[rownames(res.deseq.shrink) %in% gene.symbol$gene,]
+res.deseq.shrink = merge.data.frame(res.deseq.shrink, gene.symbol, by.x = &quot;row.names&quot;, by.y = &quot;gene&quot;)
+rownames(res.deseq.shrink) = res.deseq.shrink$Row.names
+res.deseq.shrink = res.deseq.shrink[,-1]
+
+df.deseq.shrink.effects.lattice = 
+  categorize.deseq.df.mods(res.deseq.shrink, fdr = 0.1, log2fold = 0.0, treat = &#39;dTAG13&#39;)</code></pre>
+<p>Plot MA.</p>
+<pre class="r bg-info"><code>pdf(&quot;MA_plot_dTAG13_lfcshrink_treatment_in_classes.pdf&quot;, useDingbats = FALSE, width=3.83, height=3.33);
+print(xyplot(df.deseq.shrink.effects.lattice$log2FoldChange ~
+               log(df.deseq.shrink.effects.lattice$baseMean, base=10),
+             groups=df.deseq.shrink.effects.lattice$treatment,
+             col=c(&quot;grey80&quot;, &quot;grey55&quot;, &quot;#0000FF&quot;, &quot;#FF0000&quot;),
+             scales=&quot;free&quot;,
+             aspect=1,
+             ylim=c(-1, 1),
+             xlim=c(1,4.2),
+             par.strip.text=list(cex=1.0, font = 1),
+             pch=20,
+             cex=0.1,
+             ylab=expression(&quot;log&quot;[2]~&quot;PRO shrunken fold change&quot;),
+             xlab=expression(&quot;log&quot;[10]~&quot;Mean of Normalized Counts&quot;),
+             par.settings=list(par.xlab.text=list(cex=1.1,font=2),
+                               par.ylab.text=list(cex=1.1,font=2),
+                               strip.background=list(col=&quot;grey85&quot;))))
+dev.off()</code></pre>
+<p>Over-representation analysis.</p>
+<pre class="r bg-info"><code>set.seed(0)
+genes = rownames(df.deseq.shrink.effects.lattice)[df.deseq.shrink.effects.lattice$treatment == &quot;dTAG13 Activated&quot;]
+em &lt;- enricher(genes, TERM2GENE=m_t2g, pvalueCutoff = 0.25)</code></pre>
+<p>Plot significant gene sets.</p>
+<pre class="r bg-info"><code>gse_up = em[em$qvalue &lt; .1, c(&quot;ID&quot;, &quot;GeneRatio&quot;, &quot;BgRatio&quot;, &quot;qvalue&quot;)]
+gse_up$GeneRatio = sapply(gse_up$GeneRatio, function(x) eval(parse(text=x)))
+gse_up$BgRatio = sapply(gse_up$BgRatio, function(x) eval(parse(text=x)))
+gse_up$OOE = gse_up$GeneRatio / gse_up$BgRatio
+pdf(&quot;Reactome_ORA.pdf&quot;, width = 14)
+ggplot(gse_up, aes(reorder(ID, OOE), OOE)) +
+  geom_col(aes(fill=log(qvalue, 10))) +
+  coord_flip() +
+  labs(x=&quot;Pathway&quot;, y=&quot;Observed over expected&quot;, fill = &quot;log10 q-value&quot;,
+       title=&quot;Reactome pathways&quot;) + 
+  theme_minimal()
+dev.off()</code></pre>
+<p>Plot heatmap of fold changes across clones.</p>
+<pre class="r bg-info"><code>leading_edge = rownames(res.deseq.shrink)[rownames(res.deseq.shrink) %in% strsplit(em$geneID[1], &quot;/&quot;)[[1]]]
+
+wide_counts = counts(deseq.df[rownames(deseq.df) %in% leading_edge,], normalized = TRUE)
+wide_counts = as.data.frame(wide_counts)
+wide_counts = cbind.data.frame(&quot;Clone28&quot; = log(rowSums(wide_counts[,5:8])/rowSums(wide_counts[,1:4]), base = 2), 
+                               &quot;Clone35&quot; = log(rowSums(wide_counts[,13:16])/rowSums(wide_counts[,9:12]), base = 2),
+                               &quot;Clone39&quot; = log(rowSums(wide_counts[,21:24])/rowSums(wide_counts[,17:20]), base = 2))
+wide_counts = merge.data.frame(wide_counts, gene.symbol, by.x = &quot;row.names&quot;, by.y = &quot;gene&quot;)
+rownames(wide_counts) = wide_counts$symbol
+wide_counts = wide_counts[,2:4]
+
+pdf(&quot;REACTOME_CHOLESTEROL_BIOSYNTHESIS_ORA_Heatmap.pdf&quot;)
+pheatmap(wide_counts, scale = &quot;none&quot;, angle_col = 0,
+         color = rev(rwb(100)),
+         breaks = seq(-.5, .5, 1/100))
+dev.off()</code></pre>
+</div>
+</div>
+<div id="gsea-eqtl-data" class="section level1" number="3">
+<h1><span class="header-section-number">3</span> GSEA / eQTL data</h1>
+<div id="download-gsea-summary-statistics-for-upload-to-locuszoom" class="section level2" number="3.1">
+<h2><span class="header-section-number">3.1</span> Download GSEA summary statistics for upload to LocusZoom</h2>
+<pre class="bash"><code>mkdir -p ~/Library/CloudStorage/Box-Box/GuertinLab/GWAS/
+cd ~/Library/CloudStorage/Box-Box/GuertinLab/GWAS/
+
+wget https://pan-ukb-us-east-1.s3.amazonaws.com/sumstats_flat_files/biomarkers-30690-both_sexes-irnt.tsv.bgz
+bgzip -d biomarkers-30690-both_sexes-irnt.tsv.bgz 
+head -n 1 biomarkers-30690-both_sexes-irnt.tsv &gt; header.txt
+
+cp header.txt UKBB_HDL_TRPS1.txt
+wget https://pan-ukb-us-east-1.s3.amazonaws.com/sumstats_flat_files_tabix/biomarkers-30760-both_sexes-irnt.tsv.bgz.tbi
+tabix https://pan-ukb-us-east-1.s3.amazonaws.com/sumstats_flat_files/biomarkers-30760-both_sexes-irnt.tsv.bgz \
+  8:115621311-117621311 &gt;&gt; UKBB_HDL_TRPS1.txt
+  
+cp header.txt UKBB_LDL_TRPS1.txt
+wget https://pan-ukb-us-east-1.s3.amazonaws.com/sumstats_flat_files_tabix/biomarkers-30780-both_sexes-irnt.tsv.bgz.tbi
+tabix https://pan-ukb-us-east-1.s3.amazonaws.com/sumstats_flat_files/biomarkers-30780-both_sexes-irnt.tsv.bgz \
+  8:115621311-117621311 &gt;&gt; UKBB_LDL_TRPS1.txt</code></pre>
+</div>
+<div id="colocalization" class="section level2" number="3.2">
+<h2><span class="header-section-number">3.2</span> Colocalization</h2>
+<p>Download GSEA and eQTL summary statistics.</p>
+<pre class="bash"><code>cd ~/Library/CloudStorage/Box-Box/GuertinLab/Coloc/
+
+#Cholesteryl esters
+wget http://ftp.ebi.ac.uk/pub/databases/gwas/summary_statistics/GCST90092001-GCST90093000/GCST90092947/GCST90092947_buildGRCh37.tsv.gz
+gunzip GCST90092947_buildGRCh37.tsv.gz
+
+#Pancreas
+wget http://ftp.ebi.ac.uk/pub/databases/spot/eQTL/sumstats/GTEx/ge/GTEx_ge_pancreas.all.tsv.gz
+gunzip GTEx_ge_pancreas.all.tsv.gz
+head -n 1 GTEx_ge_pancreas.all.tsv &gt; GTEx_ge_pancreas.TRPS1_with_header.tsv
+grep ENSG00000104447 GTEx_ge_pancreas.all.tsv &gt;&gt; GTEx_ge_pancreas.TRPS1_with_header.tsv</code></pre>
+<p>eQTpLot.</p>
+<pre class="r bg-info"><code>direc = &quot;~/Library/CloudStorage/Box-Box/GuertinLab/Coloc/&quot;
+setwd(direc)
+
+library(eQTpLot)
+library(coloc)
+
+GWAS.df &lt;- read.table(&quot;GCST90092947_buildGRCh37.tsv&quot;, header = T)
+names(GWAS.df)[names(GWAS.df) == &quot;variant_id&quot;] &lt;- &quot;SNP&quot;
+names(GWAS.df)[names(GWAS.df) == &quot;p_value&quot;] &lt;- &quot;P&quot;
+names(GWAS.df)[names(GWAS.df) == &quot;beta&quot;] &lt;- &quot;BETA&quot;
+head(GWAS.df)
+
+eQTL.df &lt;- read.table(&quot;GTEx_ge_pancreas.TRPS1_with_header.tsv&quot;, header = T)
+names(eQTL.df)[names(eQTL.df) == &quot;rsid&quot;] &lt;- &quot;SNP.Id&quot;
+names(eQTL.df)[names(eQTL.df) == &quot;gene_id&quot;] &lt;- &quot;Gene.Symbol&quot;
+eQTL.df$Gene.Symbol &lt;- rep(&quot;TRPS1&quot;, nrow(eQTL.df))
+names(eQTL.df)[names(eQTL.df) == &quot;pvalue&quot;] &lt;- &quot;P.Value&quot;
+names(eQTL.df)[names(eQTL.df) == &quot;beta&quot;] &lt;- &quot;NES&quot;
+eQTL.df$Tissue &lt;- rep(&quot;Pancreas&quot;, nrow(eQTL.df))
+head(eQTL.df)
+
+merge &lt;- merge(eQTL.df, GWAS.df, by.x = &quot;SNP.Id&quot;, by.y = &quot;SNP&quot;)
+merge &lt;- merge[!is.na(merge$SNP.Id),]
+head(merge)
+nrow(merge)
+length(unique(merge$SNP.Id))
+
+names(merge)[names(merge) == &quot;chromosome&quot;] &lt;- &quot;CHR&quot;
+names(merge)[names(merge) == &quot;position&quot;] &lt;- &quot;BP&quot;
+
+#Make sure the reference alleles match
+sum(merge$ref == merge$other_allele)
+sum(merge$ref == merge$effect_allele)
+sum(merge$alt == merge$effect_allele)
+sum(merge$alt == merge$other_allele)
+
+sum(merge$ref == merge$other_allele &amp; merge$alt == merge$effect_allele)
+sum(merge$ref == merge$effect_allele &amp; merge$alt == merge$other_allele)
+sum(merge$ref == merge$effect_allele &amp; merge$alt != merge$other_allele)
+merge[merge$ref == merge$effect_allele &amp; merge$alt != merge$other_allele,]
+
+#Switch signs on the 55 that don&#39;t
+merge &lt;- merge[merge$ref == merge$other_allele &amp; merge$alt == merge$effect_allele | 
+                 merge$ref == merge$effect_allele &amp; merge$alt == merge$other_allele,]
+merge$BETA[merge$ref == merge$effect_allele &amp; merge$alt == merge$other_allele] &lt;-
+  -merge$BETA[merge$ref == merge$effect_allele &amp; merge$alt == merge$other_allele]
+
+save(merge, file = &quot;TRPS1_Cholesteryl_esters.RData&quot;)
+load(&quot;TRPS1_Cholesteryl_esters.RData&quot;)
+
+GWAS.df &lt;- merge[,c(&quot;SNP.Id&quot;, &quot;CHR&quot;, &quot;BP&quot;, &quot;P&quot;, &quot;BETA&quot;)]
+names(GWAS.df)[names(GWAS.df) == &quot;SNP.Id&quot;] &lt;- &quot;SNP&quot;
+eQTL.df &lt;- merge[,c(&quot;SNP.Id&quot;, &quot;Gene.Symbol&quot;, &quot;P.Value&quot;, &quot;NES&quot;, &quot;Tissue&quot;)]
+head(GWAS.df)
+head(eQTL.df)
+
+pdf(&quot;eQTpLot_TRPS1_pancreas_Cholesteryl_esters.pdf&quot;, width = 12)
+eQTpLot(GWAS.df = GWAS.df, eQTL.df = eQTL.df, gene = &quot;TRPS1&quot;, 
+        gbuild = &quot;hg38&quot;,  trait = &quot;Cholesteryl esters to total lipids ratio in small HDL&quot;, 
+        tissue =  eQTL.df$Tissue[1],
+        range = 750, genometrackheight = 1, congruence = TRUE) 
+dev.off()</code></pre>
+<p>Coloc.</p>
+<pre class="r bg-info"><code>result &lt;- coloc.abf(dataset1=list(snp=merge$SNP.Id,
+                                  beta=merge$NES,
+                                  varbeta=(merge$se)^2,
+                                  type=&quot;quant&quot;,
+                                  sdY=1),
+                    dataset2=list(snp=merge$SNP.Id,
+                                  beta=merge$BETA,
+                                  varbeta=(merge$standard_error)^2,
+                                  type=&quot;quant&quot;,
+                                  sdY=1))
+# PP.H4 = 0.897
+result$summary</code></pre>
 </div>
 </div>
 
